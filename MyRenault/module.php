@@ -13,6 +13,12 @@ declare(strict_types=1);
  */
 class MyRenault extends IPSModule
 {
+    // aktueller Gigya-Schlüssel für alle EU-Länder (Quelle: renault-api, const.py)
+    private const GIGYA_KEY = '3_VgdkgtIRH3AdHvJm-cjV2ug2EFE0lxt0IJzMC4MFqZjFpn_GYFXVdNZ19L7wZX0N';
+    private const OBSOLETE_GIGYA_KEYS = [
+        '3_7PLksOyBRkHv126x5WhHb-5pqC1qFR8pQjxSeLB6nhAnPERTUlwnYoznHSxwX668'
+    ];
+
     private const PLUG_STATES = [
         0  => 'Nicht eingesteckt',
         1  => 'Eingesteckt',
@@ -47,7 +53,7 @@ class MyRenault extends IPSModule
         $this->RegisterPropertyBoolean('ReadLocation', true);
         $this->RegisterPropertyBoolean('UseKCM', false);
         $this->RegisterPropertyString('GigyaURL', 'https://accounts.eu1.gigya.com');
-        $this->RegisterPropertyString('GigyaAPIKey', '3_7PLksOyBRkHv126x5WhHb-5pqC1qFR8pQjxSeLB6nhAnPERTUlwnYoznHSxwX668');
+        $this->RegisterPropertyString('GigyaAPIKey', self::GIGYA_KEY);
         $this->RegisterPropertyString('KamereonURL', 'https://api-wired-prod-1-euw1.wrd-aws.com');
         $this->RegisterPropertyString('KamereonAPIKey', 'YjkKtHmGfaceeuExUDKGxrLZGGvtVS0J');
 
@@ -365,14 +371,27 @@ class MyRenault extends IPSModule
         }
     }
 
+    private function gigyaKey(): string
+    {
+        $key = trim($this->ReadPropertyString('GigyaAPIKey'));
+        // veraltete (länderspezifische) Schlüssel automatisch auf den aktuellen EU-Schlüssel umstellen
+        if ($key === '' || in_array($key, self::OBSOLETE_GIGYA_KEYS, true)) {
+            $key = self::GIGYA_KEY;
+        }
+        return $key;
+    }
+
     private function gigya(string $method, array $params): array
     {
-        $params['apiKey'] = $this->ReadPropertyString('GigyaAPIKey');
+        $params['apiKey'] = $this->gigyaKey();
         $url = rtrim($this->ReadPropertyString('GigyaURL'), '/') . '/accounts.' . $method;
         $res = $this->http('POST', $url, ['Content-Type: application/x-www-form-urlencoded'], http_build_query($params));
         $data = json_decode($res['body'], true);
         if (!is_array($data) || (int) ($data['errorCode'] ?? 0) !== 0) {
             $msg = $data['errorDetails'] ?? $data['errorMessage'] ?? ('HTTP ' . $res['code']);
+            if ((int) ($data['errorCode'] ?? 0) === 403042) {
+                $msg .= ' – E-Mail/Passwort wie in der My-Renault-App prüfen; ggf. Gigya-API-Key unter Experteneinstellungen aktualisieren';
+            }
             throw new Exception('Gigya ' . $method . ': ' . $msg);
         }
         return $data;
@@ -381,7 +400,7 @@ class MyRenault extends IPSModule
     private function login(): string
     {
         $data = $this->gigya('login', [
-            'loginID'  => $this->ReadPropertyString('Username'),
+            'loginID'  => trim($this->ReadPropertyString('Username')),
             'password' => $this->ReadPropertyString('Password')
         ]);
         $token = $data['sessionInfo']['cookieValue'] ?? '';
