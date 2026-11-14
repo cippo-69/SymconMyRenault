@@ -66,6 +66,7 @@ class MyRenault extends IPSModule
         $this->RegisterAttributeString('Vehicles', '[]');
         $this->RegisterAttributeString('Schedules', '[]');
         $this->RegisterAttributeString('LastError', '');
+        $this->RegisterAttributeString('Unsupported', '[]');
 
         $this->RegisterTimer('Update', 0, 'MRN_Update($_IPS[\'TARGET\']);');
         $this->RegisterTimer('QuickRefresh', 0, 'MRN_QuickRefresh($_IPS[\'TARGET\']);');
@@ -90,6 +91,8 @@ class MyRenault extends IPSModule
             $this->resetSession(true);
             $this->WriteAttributeString('CredentialHash', $hash);
         }
+        // nach Änderungen (z. B. anderes Fahrzeug) alle Endpunkte erneut probieren
+        $this->WriteAttributeString('Unsupported', '[]');
 
         if ($this->ReadPropertyString('Username') === '' || $this->ReadPropertyString('Password') === '') {
             $this->SetStatus(104);
@@ -558,18 +561,23 @@ class MyRenault extends IPSModule
         ];
         $res = $this->http($method, $url, $headers, $body === null ? null : json_encode($body));
 
-        if (($res['code'] === 401 || $res['code'] === 403) && $retry) {
+        $data = json_decode($res['body'], true);
+        [$code, $msg] = $res['code'] >= 400 ? $this->parseKamereonError($data, $res['body']) : ['', ''];
+
+        // 401 bzw. 403 ohne Funktions-Code = Token abgelaufen → einmal mit neuem Token wiederholen.
+        // "err.func.wired.forbidden" heißt dagegen: Funktion für dieses Fahrzeug nicht freigegeben.
+        if (($res['code'] === 401 || ($res['code'] === 403 && $code !== 'err.func.wired.forbidden')) && $retry) {
             $this->WriteAttributeString('IdToken', '');
             $this->WriteAttributeInteger('IdTokenExpires', 0);
             return $this->kamereon($method, $path, $body, false);
         }
-        $data = json_decode($res['body'], true);
         if ($res['code'] >= 400) {
-            [$code, $msg] = $this->parseKamereonError($data, $res['body']);
             if ($code === '409001' || stripos($msg, 'already in progress') !== false) {
                 throw new Exception('Das Fahrzeug bearbeitet noch einen vorherigen Befehl. Bitte 1–2 Minuten warten.', 409);
             }
-            throw new Exception('Kamereon HTTP ' . $res['code'] . ': ' . $msg, $res['code']);
+            // Code 403 nur für "Funktion nicht freigegeben", sonstige 403 (Auth) als 401 melden
+            $exCode = ($res['code'] === 403 && $code !== 'err.func.wired.forbidden') ? 401 : $res['code'];
+            throw new Exception('Kamereon HTTP ' . $res['code'] . ': ' . $msg, $exCode);
         }
         return is_array($data) ? $data : [];
     }
@@ -603,10 +611,21 @@ class MyRenault extends IPSModule
 
     private function tryRead(string $version, string $endpoint): ?array
     {
+        $key = $version . '/' . $endpoint;
+        $unsupported = json_decode($this->ReadAttributeString('Unsupported'), true) ?: [];
+        if (in_array($key, $unsupported, true)) {
+            return null; // vom Fahrzeug nicht unterstützt → nicht erneut abfragen
+        }
         try {
             $res = $this->kamereon('GET', $this->carPath($version, $endpoint));
             return $res['data']['attributes'] ?? null;
         } catch (Exception $e) {
+            if (in_array($e->getCode(), [403, 404, 501], true)) {
+                $unsupported[] = $key;
+                $this->WriteAttributeString('Unsupported', json_encode(array_values(array_unique($unsupported))));
+                $this->SendDebug('Lesen ' . $endpoint, 'Vom Fahrzeug nicht unterstützt – wird bis zum nächsten Übernehmen übersprungen (' . $e->getMessage() . ')', 0);
+                return null;
+            }
             $this->lastError = $e->getMessage();
             $this->SendDebug('Lesen ' . $endpoint, $e->getMessage(), 0);
             return null;
@@ -669,7 +688,13 @@ class MyRenault extends IPSModule
         curl_close($ch);
 
         // keine Zugangsdaten/Tokens ins Debug schreiben
-        $this->SendDebug($method . ' ' . preg_replace('/\?.*$/', '', $url), 'HTTP ' . $code . ' ' . substr((string) $resp, 0, 1500), 0);
+        // Tokens und Sitzungsdaten nie in die Debug-Ausgabe schreiben
+        $debug = preg_replace(
+            '/("(?:id_token|cookieValue|cookieName|login_token|sessionToken|sessionSecret|UID|UIDSignature)"\s*:\s*")[^"]*"/i',
+            '$1***"',
+            (string) $resp
+        );
+        $this->SendDebug($method . ' ' . preg_replace('/\?.*$/', '', $url), 'HTTP ' . $code . ' ' . substr($debug, 0, 1500), 0);
         if ($resp === false) {
             throw new Exception('Verbindungsfehler: ' . $err);
         }
@@ -843,7 +868,8 @@ class MyRenault extends IPSModule
             'lon'         => $get('Longitude'),
             'lastUpdate'  => $get('LastUpdate'),
             'status'      => $this->GetStatus(),
-            'error'       => $this->ReadAttributeString('LastError')
+            'error'       => $this->ReadAttributeString('LastError'),
+            'unsupported' => json_decode($this->ReadAttributeString('Unsupported'), true) ?: []
         ];
     }
 

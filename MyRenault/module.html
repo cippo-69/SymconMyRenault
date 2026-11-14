@@ -243,7 +243,11 @@
     btnH.textContent = d.hvac ? 'Klimatisierung stoppen' : 'Vorklimatisieren';
     btnH.className = 'grow ' + (d.hvac ? 'danger' : 'blue');
 
-    renderSchedules(d.schedules);
+    if ((d.unsupported || []).indexOf('v1/charging-settings') >= 0) {
+      q('sched').innerHTML = '<span class="muted">Vom Fahrzeug nicht unterstützt</span>';
+    } else {
+      renderSchedules(d.schedules);
+    }
     q('mileage').textContent = fmt(d.mileage, 0, ' km');
     if (d.lat && d.lon) {
       var url = 'https://www.openstreetmap.org/?mlat=' + d.lat + '&mlon=' + d.lon + '#map=17/' + d.lat + '/' + d.lon;
