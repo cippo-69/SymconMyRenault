@@ -281,8 +281,8 @@
     // Mit Zielladen: Wahl "Sofort laden" / "Zielladen" (beide setzen den Fahrzeug-Lademodus auf Sofort); sonst Sofort / Zeitplan
     var zl = zlInfo();
     q('modeSched').textContent = zl ? 'Zielladen' : 'Nach Zeitplan';
-    q('modeNow').classList.toggle('on', zl ? !zl.active : d.chargeMode !== 1);
-    q('modeSched').classList.toggle('on', zl ? !!zl.active : d.chargeMode === 1);
+    q('modeNow').classList.toggle('on', zl ? !zlActive(zl) : d.chargeMode !== 1);
+    q('modeSched').classList.toggle('on', zl ? zlActive(zl) : d.chargeMode === 1);
     q('modeHint').hidden = !(zl && d.chargeMode === 1);
     q('modeHint').textContent = '⚠ Fahrzeug steht auf „Nach Zeitplan“ – mit Sofort laden oder Zielladen wird es umgestellt.';
     q('schedHead').hidden = q('sched').hidden = !!zl;
@@ -293,7 +293,7 @@
     btnC.disabled = (d.plug !== 1 && !d.charging) || locked('charge');
     btnC.title = locked('charge') ? 'Befehl wird übertragen' : (btnC.disabled ? 'Fahrzeug ist nicht eingesteckt' : '');
     if (locked('charge')) btnC.textContent = 'Wird übertragen …';
-    q('modeNow').disabled = q('modeSched').disabled = locked('mode');
+    q('modeNow').disabled = q('modeSched').disabled = zl ? false : locked('mode');
 
     q('target').textContent = fmt(d.targetTemp, 1, ' °C');
     q('outside').textContent = fmt(d.outsideTemp, 1, ' °C');
@@ -383,8 +383,13 @@
     var t = mrn.wallbox && mrn.wallbox.target;
     return (t && t.active !== null) ? t : null;
   }
+  // angezeigter Zustand: bis zur Rückmeldung der Variablen gilt die zuletzt getippte Wahl
+  function zlActive(t) {
+    if (zlPending.active !== undefined && zlPending.active === !!t.active) delete zlPending.active; // Rückmeldung angekommen
+    return zlPending.active !== undefined ? zlPending.active : !!t.active;
+  }
   function renderTarget(t) {
-    q('wbZl').hidden = !t || !t.active;
+    q('wbZl').hidden = !t || !zlActive(t);
     if (!t) return;
     var ziel = zlPending.target !== undefined ? zlPending.target : t.target;
     var dep = zlPending.departure !== undefined ? zlPending.departure : t.departure;
@@ -420,10 +425,14 @@
   q('btnRefresh').onclick = function () { send('Refresh', true, 'Aktualisiere …'); };
   q('btnCharge').onclick = function () { send('Charging', !mrn.charging, mrn.charging ? 'Laden wird gestoppt …' : 'Laden wird gestartet …', 'charge'); };
   // ChargePlan: 0 = Sofort laden (Zielladen aus), 1 = Zielladen; das Modul stellt das Fahrzeug bei Bedarf auf Sofort
+  // Ohne Sperre: Zielladen schaltet sofort, das Fahrzeug stellt das Modul danach im Hintergrund auf Sofort
   function choosePlan(v) {
     var zl = zlInfo();
-    if (!!zl.active === !!v && mrn.chargeMode === 0) return;
-    send('ChargePlan', v, v ? 'Zielladen an' : 'Sofort laden', 'mode', mrn.chargeMode !== 0 ? LOCK_MS : 5000);
+    if (zlActive(zl) === !!v && mrn.chargeMode === 0) return;
+    zlPending.active = !!v; render();
+    send('ChargePlan', v, v ? 'Zielladen an' : 'Sofort laden');
+    clearTimeout(choosePlan._t);
+    choosePlan._t = setTimeout(function () { delete zlPending.active; render(); }, 15000);
   }
   q('modeNow').onclick = function () {
     if (zlInfo()) choosePlan(0);
@@ -438,7 +447,7 @@
     q('wbMode' + v).onclick = function () {
       var m = mrn.wallbox && mrn.wallbox.mode;
       var zl = zlInfo();
-      if (m && m.value !== !!v) send('WBMode', !!v, 'Wallbox: ' + m.texts[v] + (zl && zl.active ? ' – Zielladen pausiert bis zur Abfahrt' : ''), 'wbmode', 10000);
+      if (m && m.value !== !!v) send('WBMode', !!v, 'Wallbox: ' + m.texts[v] + (zl && zlActive(zl) ? ' – Zielladen pausiert bis zur Abfahrt' : ''), 'wbmode', 10000);
     };
     q('wbPh' + v).onclick = function () {
       var ph = mrn.wallbox && mrn.wallbox.phases;

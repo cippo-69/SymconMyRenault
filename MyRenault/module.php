@@ -333,12 +333,13 @@ class MyRenault extends IPSModule
                 break;
             case 'ChargePlan':
                 // Kachel mit Zielladen: 0 = Sofort laden (Zielladen aus), 1 = Zielladen an; Fahrzeug jeweils auf "Sofort"
-                $ok = true;
-                if ($this->GetValue('ChargeMode') !== 0) {
-                    $ok = $this->SetChargeMode(0);
-                }
-                if ($ok) {
-                    $ok = $this->wbSwitch('WBZlActive', (int) $Value === 1);
+                // Zielladen zuerst (lokal, sofort); danach das Fahrzeug, aber nur einmal je 90 s (laufender Befehl -> HTTP 409)
+                $ok = $this->wbSwitch('WBZlActive', (int) $Value === 1);
+                if ($ok && $this->GetValue('ChargeMode') !== 0 && time() - (int) $this->GetBuffer('ChargePlanCar') > 90) {
+                    $this->SetBuffer('ChargePlanCar', (string) time());
+                    if (!$this->SetChargeMode(0)) {
+                        echo 'My Renault: Fahrzeug konnte nicht auf „Sofort laden“ gestellt werden – ' . ($this->lastError !== '' ? $this->lastError : 'Befehl fehlgeschlagen');
+                    }
                 }
                 break;
             case 'WBZlTarget':
