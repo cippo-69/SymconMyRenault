@@ -1,0 +1,12 @@
+{
+    "id": "{7E3A9C41-2B5D-4F8E-A1C6-93D0E5B7F214}",
+    "name": "MyRenault",
+    "author": "Volker Hauswald",
+    "url": "https://github.com/cippo-69/SymconMyRenault",
+    "compatibility": {
+        "version": "7.0"
+    },
+    "version": "1.0",
+    "build": 1,
+    "date": 1794614400
+}

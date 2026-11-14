@@ -1,0 +1,55 @@
+{
+    "elements": [
+        { "type": "Label", "caption": "Zugangsdaten des My-Renault-Kontos (App / renault.de)" },
+        { "type": "ValidationTextBox", "name": "Username", "caption": "E-Mail" },
+        { "type": "PasswordTextBox", "name": "Password", "caption": "Passwort" },
+        {
+            "type": "Select", "name": "Locale", "caption": "Land / Sprache",
+            "options": [
+                { "caption": "Deutschland (de_DE)", "value": "de_DE" },
+                { "caption": "Österreich (de_AT)", "value": "de_AT" },
+                { "caption": "Schweiz (de_CH)", "value": "de_CH" },
+                { "caption": "Frankreich (fr_FR)", "value": "fr_FR" },
+                { "caption": "Großbritannien (en_GB)", "value": "en_GB" },
+                { "caption": "Niederlande (nl_NL)", "value": "nl_NL" },
+                { "caption": "Italien (it_IT)", "value": "it_IT" },
+                { "caption": "Spanien (es_ES)", "value": "es_ES" }
+            ]
+        },
+        { "type": "ValidationTextBox", "name": "VIN", "caption": "Fahrzeug (VIN, leer = erstes Fahrzeug)" },
+        { "type": "NumberSpinner", "name": "UpdateInterval", "caption": "Abfrageintervall", "suffix": "Minuten", "minimum": 0, "maximum": 1440 },
+        { "type": "Label", "caption": "0 = kein automatisches Abfragen. Unter 10 Minuten nicht empfohlen (Rate-Limit bei Renault)." },
+        { "type": "CheckBox", "name": "ReadLocation", "caption": "GPS-Position abfragen" },
+        {
+            "type": "ExpansionPanel", "caption": "Experteneinstellungen",
+            "items": [
+                { "type": "CheckBox", "name": "UseKCM", "caption": "Laden Start/Pause über KCM-Endpunkt (Megane E-Tech, Scenic, R5, R4 …)" },
+                { "type": "ValidationTextBox", "name": "GigyaURL", "caption": "Gigya-URL" },
+                { "type": "ValidationTextBox", "name": "GigyaAPIKey", "caption": "Gigya-API-Key" },
+                { "type": "ValidationTextBox", "name": "KamereonURL", "caption": "Kamereon-URL" },
+                { "type": "ValidationTextBox", "name": "KamereonAPIKey", "caption": "Kamereon-API-Key" },
+                { "type": "Label", "caption": "Die Schlüssel ändert Renault gelegentlich. Aktuelle Werte: Projekt 'renault-api' (hacf-fr) auf GitHub, Datei const.py." }
+            ]
+        }
+    ],
+    "actions": [
+        { "type": "Button", "caption": "Verbindung testen / Fahrzeuge suchen", "onClick": "echo MRN_DiscoverVehicles($id);" },
+        { "type": "Button", "caption": "Jetzt aktualisieren", "onClick": "echo MRN_Update($id) ? 'Daten aktualisiert.' : 'Aktualisierung fehlgeschlagen – siehe Meldungen / Debug.';" },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "Button", "caption": "Klima starten", "onClick": "echo MRN_StartClimate($id, GetValue(IPS_GetObjectIDByIdent('TargetTemperature', $id))) ? 'Befehl gesendet.' : 'Fehler.';" },
+                { "type": "Button", "caption": "Klima stoppen", "onClick": "echo MRN_StopClimate($id) ? 'Befehl gesendet.' : 'Fehler.';" },
+                { "type": "Button", "caption": "Laden starten", "onClick": "echo MRN_StartCharging($id) ? 'Befehl gesendet.' : 'Fehler.';" },
+                { "type": "Button", "caption": "Laden stoppen", "onClick": "echo MRN_StopCharging($id) ? 'Befehl gesendet.' : 'Fehler.';" }
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Verbunden" },
+        { "code": 104, "icon": "inactive", "caption": "Bitte Zugangsdaten eintragen" },
+        { "code": 201, "icon": "error", "caption": "Anmeldung bei My Renault fehlgeschlagen" },
+        { "code": 202, "icon": "error", "caption": "Kein Fahrzeug gefunden / VIN unbekannt" },
+        { "code": 203, "icon": "error", "caption": "Fahrzeugdaten konnten nicht gelesen werden" }
+    ]
+}

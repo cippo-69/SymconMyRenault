@@ -1,0 +1,16 @@
+{
+    "id": "{B4D81F6A-5C2E-4A97-8E3B-1F60C9D2A7E5}",
+    "name": "MyRenault",
+    "type": 3,
+    "vendor": "Renault",
+    "aliases": [
+        "My Renault",
+        "Renault E-Tech",
+        "Renault Lademanagement"
+    ],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "MRN",
+    "url": "https://github.com/cippo-69/SymconMyRenault"
+}
