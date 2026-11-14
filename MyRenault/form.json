@@ -37,7 +37,12 @@
                 { "type": "SelectVariable", "name": "WBFcEnd", "caption": "Solarfenster heute Ende (Unix-Zeit)" },
                 { "type": "SelectVariable", "name": "WBFcKWh", "caption": "Solarlademenge heute (kWh)" },
                 { "type": "SelectVariable", "name": "WBFcKWhTomorrow", "caption": "Solarlademenge morgen (kWh)" },
-                { "type": "SelectVariable", "name": "WBFcText", "caption": "Empfehlung (Text)" }
+                { "type": "SelectVariable", "name": "WBFcText", "caption": "Empfehlung (Text)" },
+                { "type": "Label", "caption": "Zielladen (optional): Ziel-% bis Abfahrtsstunde. Die Planung und das Schalten macht ein eigenes Skript; die Kachel bedient nur dessen Variablen." },
+                { "type": "SelectVariable", "name": "WBZlActive", "caption": "Zielladen aktiv (Bool, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBZlTarget", "caption": "Ziel-Ladestand (%, Integer, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBZlDeparture", "caption": "Abfahrt (Stunde 0–23, Integer, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBZlStatus", "caption": "Zielladen-Status (Text)" }
             ]
         },
         {

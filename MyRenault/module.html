@@ -161,6 +161,21 @@
         <div class="muted" id="wbFcWin">–</div>
         <div class="muted" id="wbFcText"></div>
       </div>
+      <div class="wbfc" id="wbZl" hidden>
+        <div class="wbfc-head" style="color:var(--mrn-blue)"><span>◎ Zielladen</span><span id="zlHead">–</span></div>
+        <div class="seg" id="zlSeg" role="group" aria-label="Zielladen">
+          <button id="zl0">Aus</button><button id="zl1">An</button>
+        </div>
+        <div class="temp">
+          <button class="icon" id="zlTMinus" aria-label="Ziel senken">−</button>
+          <div style="text-align:center"><div class="big" id="zlTarget" style="font-size:22px">–</div><div class="muted">Ziel</div></div>
+          <button class="icon" id="zlTPlus" aria-label="Ziel erhöhen">+</button>
+          <button class="icon" id="zlDMinus" aria-label="Abfahrt früher">−</button>
+          <div style="text-align:center"><div class="big" id="zlDep" style="font-size:22px">–</div><div class="muted">Abfahrt</div></div>
+          <button class="icon" id="zlDPlus" aria-label="Abfahrt später">+</button>
+        </div>
+        <div class="muted" id="zlStatus"></div>
+      </div>
     </div>
 
     <!-- Zeitplan & Fahrzeug -->
@@ -355,6 +370,40 @@
 
     renderBoolSeg('wbModeSeg', 'wbMode', wb.mode, 'wbmode');
     renderBoolSeg('wbPhaseSeg', 'wbPh', wb.phases, 'wbphases');
+    renderTarget(wb.target);
+  }
+
+  // Zielladen: Ziel-% und Abfahrtsstunde, geschaltet über die Aktion der Variablen
+  var zlPending = {};
+  function renderTarget(t) {
+    q('wbZl').hidden = !t;
+    if (!t) return;
+    var ziel = zlPending.target !== undefined ? zlPending.target : t.target;
+    var dep = zlPending.departure !== undefined ? zlPending.departure : t.departure;
+    q('zlTarget').textContent = ziel + ' %';
+    q('zlDep').textContent = dep === null ? '–' : String(dep).padStart(2, '0') + ':00';
+    q('zlHead').textContent = t.active === false ? 'aus' : (t.active ? 'aktiv' : '');
+    q('zlSeg').hidden = t.active === null;
+    q('zl0').classList.toggle('on', t.active === false);
+    q('zl1').classList.toggle('on', t.active === true);
+    ['zl0', 'zl1', 'zlTMinus', 'zlTPlus'].forEach(function (id) { q(id).disabled = !t.actionable || locked('zl'); });
+    ['zlDMinus', 'zlDPlus'].forEach(function (id) { q(id).disabled = !t.actionable || dep === null; });
+    q('zlStatus').textContent = t.status || '';
+  }
+  function stepTarget(key, delta) {
+    var t = mrn.wallbox && mrn.wallbox.target;
+    if (!t || !t.actionable) return;
+    var r = key === 'target' ? t.targetRange : t.depRange;
+    var cur = zlPending[key] !== undefined ? zlPending[key] : t[key];
+    var v = +cur + delta * r[2];
+    if (key === 'departure') v = ((v - r[0]) % (r[1] - r[0] + 1) + (r[1] - r[0] + 1)) % (r[1] - r[0] + 1) + r[0]; // Stunde rundum
+    else v = Math.max(r[0], Math.min(r[1], v));
+    zlPending[key] = v; render();
+    clearTimeout(stepTarget['_' + key]);
+    stepTarget['_' + key] = setTimeout(function () {
+      send(key === 'target' ? 'WBZlTarget' : 'WBZlDeparture', v, key === 'target' ? 'Ziel ' + v + ' %' : 'Abfahrt ' + String(v).padStart(2, '0') + ':00');
+      setTimeout(function () { delete zlPending[key]; render(); }, 3000);
+    }, 700);
   }
 
   // Wird von IP-Symcon aufgerufen (UpdateVisualizationValue / initial)
@@ -385,6 +434,16 @@
     clearTimeout(stepTemp._t);
     stepTemp._t = setTimeout(function () { send('TargetTemperature', t); }, 600);
   }
+  [0, 1].forEach(function (v) {
+    q('zl' + v).onclick = function () {
+      var t = mrn.wallbox && mrn.wallbox.target;
+      if (t && t.active !== !!v) send('WBZlActive', !!v, v ? 'Zielladen an' : 'Zielladen aus', 'zl', 5000);
+    };
+  });
+  q('zlTMinus').onclick = function () { stepTarget('target', -1); };
+  q('zlTPlus').onclick = function () { stepTarget('target', 1); };
+  q('zlDMinus').onclick = function () { stepTarget('departure', -1); };
+  q('zlDPlus').onclick = function () { stepTarget('departure', 1); };
   q('tMinus').onclick = function () { stepTemp(-0.5); };
   q('tPlus').onclick = function () { stepTemp(0.5); };
 </script>

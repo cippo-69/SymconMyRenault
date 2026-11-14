@@ -131,7 +131,7 @@ class MyRenault extends IPSModule
     // ------------------------------------------------------------------ E3DC-Wallbox
 
     private const WB_PROPS = ['WBPower', 'WBSolarPower', 'WBCtrl', 'WBMode', 'WBPhases', 'WBEnergy', 'WBSolarEnergy', 'WBOnline',
-        'WBFcStart', 'WBFcEnd', 'WBFcKWh', 'WBFcKWhTomorrow', 'WBFcText'];
+        'WBFcStart', 'WBFcEnd', 'WBFcKWh', 'WBFcKWhTomorrow', 'WBFcText', 'WBZlActive', 'WBZlTarget', 'WBZlDeparture', 'WBZlStatus'];
 
     private function watchWallbox(): void
     {
@@ -210,6 +210,30 @@ class MyRenault extends IPSModule
                 'text'     => ($id = $this->wbVar('WBFcText')) ? (string) GetValue($id) : ''
             ];
         }
+        // optionales Zielladen (Ziel-% bis Abfahrtsstunde, z. B. aus einem eigenen Planungsskript)
+        $wb['target'] = null;
+        if (($tid = $this->wbVar('WBZlTarget')) > 0) {
+            $range = function (int $id, array $def) {
+                $v = IPS_GetVariable($id);
+                $p = $v['VariableCustomProfile'] !== '' ? $v['VariableCustomProfile'] : $v['VariableProfile'];
+                if ($p === '' || !IPS_VariableProfileExists($p)) {
+                    return $def;
+                }
+                $pr = IPS_GetVariableProfile($p);
+                return $pr['MaxValue'] > $pr['MinValue'] ? [$pr['MinValue'], $pr['MaxValue'], $pr['StepSize'] > 0 ? $pr['StepSize'] : $def[2]] : $def;
+            };
+            $did = $this->wbVar('WBZlDeparture');
+            $aid = $this->wbVar('WBZlActive');
+            $wb['target'] = [
+                'active'     => $aid ? (bool) GetValue($aid) : null,
+                'target'     => (int) GetValue($tid),
+                'targetRange' => $range($tid, [20, 100, 5]),
+                'departure'  => $did ? (int) GetValue($did) : null,
+                'depRange'   => $did ? $range($did, [0, 23, 1]) : [0, 23, 1],
+                'status'     => ($id = $this->wbVar('WBZlStatus')) ? (string) GetValue($id) : '',
+                'actionable' => $this->wbHasAction($tid)
+            ];
+        }
         if ($ctrl > 0) {
             // E3DC WallBox_x_CTRL (Register 40088 ff.), Bitfeld
             $c = (int) GetValue($ctrl);
@@ -238,7 +262,8 @@ class MyRenault extends IPSModule
         return $wb;
     }
 
-    private function wbSwitch(string $prop, bool $value): bool
+    /** @param bool|int $value */
+    private function wbSwitch(string $prop, $value): bool
     {
         $id = $this->wbVar($prop);
         if ($id === 0 || !$this->wbHasAction($id)) {
@@ -302,6 +327,13 @@ class MyRenault extends IPSModule
             case 'WBMode':
             case 'WBPhases':
                 $ok = $this->wbSwitch($Ident, (bool) $Value);
+                break;
+            case 'WBZlActive':
+                $ok = $this->wbSwitch($Ident, (bool) $Value);
+                break;
+            case 'WBZlTarget':
+            case 'WBZlDeparture':
+                $ok = $this->wbSwitch($Ident, (int) $Value);
                 break;
             default:
                 throw new Exception('Ungültiger Ident: ' . $Ident);
