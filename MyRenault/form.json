@@ -21,6 +21,20 @@
         { "type": "Label", "caption": "0 = kein automatisches Abfragen. Unter 10 Minuten nicht empfohlen (Rate-Limit bei Renault)." },
         { "type": "CheckBox", "name": "ReadLocation", "caption": "GPS-Position abfragen" },
         {
+            "type": "ExpansionPanel", "caption": "E3DC-Wallbox (optional, vorhandene IPS-Variablen)",
+            "items": [
+                { "type": "Label", "caption": "Nicht benötigte Felder leer lassen. Die Kachel zeigt die Wallbox, sobald Leistung oder CTRL-Register gewählt ist." },
+                { "type": "SelectVariable", "name": "WBPower", "caption": "Wallbox-Leistung (W)" },
+                { "type": "SelectVariable", "name": "WBSolarPower", "caption": "Wallbox-Solarleistung (W)" },
+                { "type": "SelectVariable", "name": "WBCtrl", "caption": "WallBox_x_CTRL-Register (Bitfeld)" },
+                { "type": "SelectVariable", "name": "WBMode", "caption": "Lademodus (Bool, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBPhases", "caption": "Phasen (Bool, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBEnergy", "caption": "Wallbox-Wirkarbeit (kWh)" },
+                { "type": "SelectVariable", "name": "WBSolarEnergy", "caption": "Wallbox-Solar-Wirkarbeit (kWh)" },
+                { "type": "SelectVariable", "name": "WBOnline", "caption": "Online-/Verfügbarkeitsstatus" }
+            ]
+        },
+        {
             "type": "ExpansionPanel", "caption": "Experteneinstellungen",
             "items": [
                 { "type": "CheckBox", "name": "UseKCM", "caption": "Laden Start/Pause über KCM-Endpunkt (Megane E-Tech, Scenic, R5, R4 …)" },

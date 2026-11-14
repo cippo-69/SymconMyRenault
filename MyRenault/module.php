@@ -57,6 +57,12 @@ class MyRenault extends IPSModule
         $this->RegisterPropertyString('KamereonURL', 'https://api-wired-prod-1-euw1.wrd-aws.com');
         $this->RegisterPropertyString('KamereonAPIKey', 'YjkKtHmGfaceeuExUDKGxrLZGGvtVS0J');
 
+        // optionale E3DC-Wallbox (vorhandene IPS-Variablen, 0 = nicht verwendet)
+        foreach (self::WB_PROPS as $prop) {
+            $this->RegisterPropertyInteger($prop, 0);
+        }
+        $this->RegisterAttributeString('WBWatched', '[]');
+
         $this->RegisterAttributeString('CredentialHash', '');
         $this->RegisterAttributeString('LoginToken', '');
         $this->RegisterAttributeString('PersonId', '');
@@ -80,6 +86,7 @@ class MyRenault extends IPSModule
     {
         parent::ApplyChanges();
         $this->RegisterMessage(0, IPS_KERNELSTARTED);
+        $this->watchWallbox();
 
         $this->createProfiles();
         $this->registerVariables();
@@ -113,7 +120,122 @@ class MyRenault extends IPSModule
     {
         if ($Message == IPS_KERNELSTARTED) {
             $this->ApplyChanges();
+        } elseif ($Message == VM_UPDATE) {
+            // Wallbox-Wert geändert → Kachel aktualisieren (nur bei echter Änderung)
+            if (!empty($Data[1])) {
+                $this->updateVisu();
+            }
         }
+    }
+
+    // ------------------------------------------------------------------ E3DC-Wallbox
+
+    private const WB_PROPS = ['WBPower', 'WBSolarPower', 'WBCtrl', 'WBMode', 'WBPhases', 'WBEnergy', 'WBSolarEnergy', 'WBOnline'];
+
+    private function watchWallbox(): void
+    {
+        foreach (json_decode($this->ReadAttributeString('WBWatched'), true) ?: [] as $id) {
+            $this->UnregisterMessage($id, VM_UPDATE);
+        }
+        $watched = [];
+        foreach (self::WB_PROPS as $prop) {
+            $id = $this->ReadPropertyInteger($prop);
+            if ($id > 0 && IPS_VariableExists($id)) {
+                $this->RegisterMessage($id, VM_UPDATE);
+                $watched[] = $id;
+            }
+        }
+        $this->WriteAttributeString('WBWatched', json_encode(array_values(array_unique($watched))));
+    }
+
+    private function wbVar(string $prop): int
+    {
+        $id = $this->ReadPropertyInteger($prop);
+        return ($id > 0 && IPS_VariableExists($id)) ? $id : 0;
+    }
+
+    private function wbHasAction(int $id): bool
+    {
+        $v = IPS_GetVariable($id);
+        return ($v['VariableCustomAction'] ?? 0) > 1 || (($v['VariableCustomAction'] ?? 0) === 0 && ($v['VariableAction'] ?? 0) > 1);
+    }
+
+    /** Texte des Bool-Profils: [false-Text, true-Text] */
+    private function wbBoolTexts(int $id, array $fallback): array
+    {
+        $v = IPS_GetVariable($id);
+        $profile = $v['VariableCustomProfile'] !== '' ? $v['VariableCustomProfile'] : $v['VariableProfile'];
+        $texts = $fallback;
+        if ($profile !== '' && IPS_VariableProfileExists($profile)) {
+            foreach (IPS_GetVariableProfile($profile)['Associations'] as $a) {
+                if ($a['Name'] !== '') {
+                    $texts[(int) (bool) $a['Value']] = $a['Name'];
+                }
+            }
+        }
+        return $texts;
+    }
+
+    private function getWallboxData(): ?array
+    {
+        $power = $this->wbVar('WBPower');
+        $ctrl = $this->wbVar('WBCtrl');
+        if ($power === 0 && $ctrl === 0) {
+            return null;
+        }
+        $num = function (string $prop) {
+            $id = $this->wbVar($prop);
+            return $id ? (float) GetValue($id) : null;
+        };
+        $wb = [
+            'power'       => $num('WBPower'),       // W
+            'solarPower'  => $num('WBSolarPower'),  // W
+            'energy'      => $num('WBEnergy'),      // kWh
+            'solarEnergy' => $num('WBSolarEnergy'), // kWh
+            'online'      => null,
+            'ctrl'        => null
+        ];
+        if (($id = $this->wbVar('WBOnline')) > 0) {
+            $wb['online'] = GetValueFormatted($id);
+        }
+        if ($ctrl > 0) {
+            // E3DC WallBox_x_CTRL (Register 40088 ff.), Bitfeld
+            $c = (int) GetValue($ctrl);
+            $wb['ctrl'] = [
+                'available' => (bool) ($c & 1),
+                'solar'     => (bool) ($c & 2),
+                'blocked'   => (bool) ($c & 4),
+                'charging'  => (bool) ($c & 8),
+                'locked'    => (bool) ($c & 16),
+                'plugged'   => (bool) ($c & 32),
+                'onePhase'  => (bool) ($c & 4096)
+            ];
+        }
+        foreach (['WBMode' => ['Mischbetrieb', 'Sonnenmodus'], 'WBPhases' => ['3-phasig', '1-phasig']] as $prop => $fallback) {
+            $key = $prop === 'WBMode' ? 'mode' : 'phases';
+            if (($id = $this->wbVar($prop)) > 0) {
+                $wb[$key] = [
+                    'value'      => (bool) GetValue($id),
+                    'texts'      => $this->wbBoolTexts($id, $fallback),
+                    'actionable' => $this->wbHasAction($id)
+                ];
+            } else {
+                $wb[$key] = null;
+            }
+        }
+        return $wb;
+    }
+
+    private function wbSwitch(string $prop, bool $value): bool
+    {
+        $id = $this->wbVar($prop);
+        if ($id === 0 || !$this->wbHasAction($id)) {
+            $this->lastError = 'Wallbox-Variable nicht konfiguriert oder ohne Aktion';
+            return false;
+        }
+        $ok = RequestAction($id, $value);
+        $this->updateVisu();
+        return $ok !== false;
     }
 
     public function GetConfigurationForm()
@@ -164,6 +286,10 @@ class MyRenault extends IPSModule
                 break;
             case 'Refresh':
                 $ok = $this->Update();
+                break;
+            case 'WBMode':
+            case 'WBPhases':
+                $ok = $this->wbSwitch($Ident, (bool) $Value);
                 break;
             default:
                 throw new Exception('Ungültiger Ident: ' . $Ident);
@@ -869,7 +995,8 @@ class MyRenault extends IPSModule
             'lastUpdate'  => $get('LastUpdate'),
             'status'      => $this->GetStatus(),
             'error'       => $this->ReadAttributeString('LastError'),
-            'unsupported' => json_decode($this->ReadAttributeString('Unsupported'), true) ?: []
+            'unsupported' => json_decode($this->ReadAttributeString('Unsupported'), true) ?: [],
+            'wallbox'     => $this->getWallboxData()
         ];
     }
 

@@ -58,6 +58,9 @@
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
   .pulse { animation: pulse 1.6s infinite; }
   a { color: var(--mrn-blue); }
+  [hidden] { display: none !important; }
+  .wbbar { height: 8px; border-radius: 999px; background: var(--mrn-line); overflow: hidden; }
+  .wbbar span { display: block; height: 100%; width: 0; background: var(--mrn-amber); transition: width .6s; }
 </style>
 
 <div id="mrn">
@@ -124,6 +127,35 @@
       </div>
     </div>
 
+    <!-- E3DC-Wallbox -->
+    <div class="card" id="wbCard" hidden>
+      <h3>Wallbox</h3>
+      <div class="temp">
+        <div>
+          <div class="big" id="wbPower">–</div>
+          <div class="muted">Ladeleistung</div>
+        </div>
+        <div style="text-align:right">
+          <div class="big" id="wbSolarPct" style="font-size:22px">–</div>
+          <div class="muted">Solaranteil</div>
+        </div>
+      </div>
+      <div class="wbbar" aria-hidden="true"><span id="wbBarSolar"></span></div>
+      <div class="chips" id="wbChips"></div>
+      <div class="seg" id="wbModeSeg" role="group" aria-label="Wallbox-Lademodus">
+        <button id="wbMode1"></button><button id="wbMode0"></button>
+      </div>
+      <div class="seg" id="wbPhaseSeg" role="group" aria-label="Phasen">
+        <button id="wbPh1"></button><button id="wbPh0"></button>
+      </div>
+      <div class="facts">
+        <span>Solar</span><span id="wbSolarPower">–</span>
+        <span>Energie</span><span id="wbEnergy">–</span>
+        <span>davon Solar</span><span id="wbSolarEnergy">–</span>
+        <span>Status</span><span id="wbOnline">–</span>
+      </div>
+    </div>
+
     <!-- Zeitplan & Fahrzeug -->
     <div class="card">
       <h3>Ladezeitplan</h3>
@@ -158,14 +190,15 @@
   var locks = {};
   function locked(group) { return group && locks[group] && locks[group] > Date.now(); }
 
-  function send(ident, value, msg, group) {
+  function send(ident, value, msg, group, lockMs) {
     if (locked(group)) { toast('Vorheriger Befehl läuft noch …'); return; }
     if (typeof requestAction === 'function') { requestAction(ident, value); }
     else { console.log('requestAction', ident, value); }
     if (msg) toast(msg);
     if (group) {
-      locks[group] = Date.now() + LOCK_MS;
-      setTimeout(render, LOCK_MS + 100);
+      var ms = lockMs || LOCK_MS;
+      locks[group] = Date.now() + ms;
+      setTimeout(render, ms + 100);
       render();
     }
   }
@@ -257,6 +290,54 @@
       q('pos').textContent = '–';
     }
     q('vin').textContent = d.vin || '–';
+    renderWallbox(d.wallbox);
+  }
+
+  function chip(text, color) {
+    return '<span class="chip"><span class="dot" style="background:' + color + '"></span>' + text + '</span>';
+  }
+
+  function renderBoolSeg(segId, prefix, info, group) {
+    var seg = q(segId);
+    seg.hidden = !info;
+    if (!info) return;
+    [0, 1].forEach(function (v) {
+      var b = q(prefix + v);
+      b.textContent = info.texts[v];
+      b.classList.toggle('on', info.value === !!v);
+      b.disabled = !info.actionable || locked(group);
+      b.title = info.actionable ? '' : 'Variable hat keine Aktion';
+    });
+  }
+
+  function renderWallbox(wb) {
+    q('wbCard').hidden = !wb;
+    if (!wb) return;
+    var p = wb.power, s = wb.solarPower;
+    q('wbPower').textContent = p === null ? '–' : fmt(p / 1000, 1, ' kW');
+    var share = (p > 50 && s !== null) ? Math.max(0, Math.min(100, Math.round(s / p * 100))) : null;
+    q('wbSolarPct').textContent = share === null ? '–' : share + ' %';
+    q('wbBarSolar').style.width = (share || 0) + '%';
+    q('wbSolarPower').textContent = s === null ? '–' : fmt(s / 1000, 1, ' kW');
+    q('wbEnergy').textContent = fmt(wb.energy, 2, ' kWh');
+    q('wbSolarEnergy').textContent = fmt(wb.solarEnergy, 2, ' kWh');
+    q('wbOnline').textContent = wb.online || '–';
+
+    var chips = '';
+    var c = wb.ctrl;
+    if (c) {
+      if (!c.available) chips += chip('Nicht verfügbar', 'var(--mrn-red)');
+      chips += chip(c.plugged ? (c.locked ? 'Gesteckt · verriegelt' : 'Gesteckt') : 'Kein Fahrzeug', c.plugged ? 'var(--mrn-green)' : 'var(--mrn-muted)');
+      if (c.blocked) chips += chip('Gesperrt', 'var(--mrn-red)');
+      else if (c.charging || p > 50) chips += chip('Lädt', 'var(--mrn-green)');
+      else if (c.plugged) chips += chip('Bereit', 'var(--mrn-amber)');
+    } else if (p > 50) {
+      chips += chip('Lädt', 'var(--mrn-green)');
+    }
+    q('wbChips').innerHTML = chips;
+
+    renderBoolSeg('wbModeSeg', 'wbMode', wb.mode, 'wbmode');
+    renderBoolSeg('wbPhaseSeg', 'wbPh', wb.phases, 'wbphases');
   }
 
   // Wird von IP-Symcon aufgerufen (UpdateVisualizationValue / initial)
@@ -271,6 +352,16 @@
   q('modeNow').onclick = function () { if (mrn.chargeMode !== 0) send('ChargeMode', 0, 'Lademodus: Sofort', 'mode'); };
   q('modeSched').onclick = function () { if (mrn.chargeMode !== 1) send('ChargeMode', 1, 'Lademodus: Zeitplan', 'mode'); };
   q('btnHvac').onclick = function () { send('HvacStatus', !mrn.hvac, mrn.hvac ? 'Klimatisierung wird gestoppt …' : 'Klimatisierung auf ' + fmt(mrn.targetTemp, 1, ' °C') + ' …', 'hvac'); };
+  [0, 1].forEach(function (v) {
+    q('wbMode' + v).onclick = function () {
+      var m = mrn.wallbox && mrn.wallbox.mode;
+      if (m && m.value !== !!v) send('WBMode', !!v, 'Wallbox: ' + m.texts[v], 'wbmode', 10000);
+    };
+    q('wbPh' + v).onclick = function () {
+      var ph = mrn.wallbox && mrn.wallbox.phases;
+      if (ph && ph.value !== !!v) send('WBPhases', !!v, 'Wallbox: ' + ph.texts[v], 'wbphases', 10000);
+    };
+  });
   function stepTemp(delta) {
     var t = Math.max(16, Math.min(27, (+mrn.targetTemp || 21) + delta));
     mrn.targetTemp = t; render();

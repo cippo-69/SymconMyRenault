@@ -25,6 +25,20 @@ Alle schaltbaren Variablen (`Laden`, `Lademodus`, `Klimatisierung`, `Zieltempera
 4. **Verbindung testen / Fahrzeuge suchen** drücken, Formular neu öffnen, Fahrzeug auswählen.
 5. In der Tile-Visualisierung die Instanz als Kachel hinzufügen.
 
+## E3DC-Wallbox (optional)
+
+Eine bereits in IP-Symcon eingebundene E3DC-Wallbox kann mit in der Kachel erscheinen. Im Formular unter **E3DC-Wallbox** die vorhandenen Variablen auswählen:
+
+| Feld | Inhalt |
+|---|---|
+| Wallbox-Leistung / Solarleistung | Leistung in W (Modbus) |
+| WallBox_x_CTRL-Register | Bitfeld des E3DC-Registers 40088 ff.: Stecker, Verriegelung, Laden, Sperre, Phasen |
+| Lademodus / Phasen | Bool-Variablen; schaltbar aus der Kachel, wenn die Variable eine Aktion hat. Die Beschriftung kommt aus dem Variablenprofil |
+| Wirkarbeit / Solar-Wirkarbeit | Energie in kWh |
+| Online-Status | beliebige Statusvariable, wird formatiert angezeigt |
+
+Die Kachel zeigt Ladeleistung, Solaranteil, Steckerstatus und die Schalter für Lademodus und Phasen. Sie aktualisiert sich sofort, wenn sich eine der Variablen ändert. Geschaltet wird über die Aktion der Variablen selbst (`RequestAction`), also über deine vorhandenen Skripte.
+
 ## PHP-Befehle
 
 ```php
