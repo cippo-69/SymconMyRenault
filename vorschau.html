@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><body style="background:#1f2329;color:#eee;width:760px;height:760px">
+<!doctype html><meta charset="utf-8"><body style="background:#1f2329;color:#eee;width:760px;height:800px">
 <style>
   :root {
     --mrn-surface: rgba(127,127,127,.12);
@@ -60,6 +60,8 @@
   .pulse { animation: pulse 1.6s infinite; }
   a { color: var(--mrn-blue); }
   [hidden] { display: none !important; }
+  .wbfc { border-top: 1px solid var(--mrn-line); padding-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+  .wbfc-head { display: flex; justify-content: space-between; font-weight: 600; color: var(--mrn-amber); }
   .wbbar { height: 8px; border-radius: 999px; background: var(--mrn-line); overflow: hidden; }
   .wbbar span { display: block; height: 100%; width: 0; background: var(--mrn-amber); transition: width .6s; }
 </style>
@@ -154,6 +156,11 @@
         <span>Energie</span><span id="wbEnergy">–</span>
         <span>davon Solar</span><span id="wbSolarEnergy">–</span>
         <span>Status</span><span id="wbOnline">–</span>
+      </div>
+      <div class="wbfc" id="wbFc" hidden>
+        <div class="wbfc-head"><span>☀ Solarprognose</span><span id="wbFcKwh">–</span></div>
+        <div class="muted" id="wbFcWin">–</div>
+        <div class="muted" id="wbFcText"></div>
       </div>
     </div>
 
@@ -337,6 +344,16 @@
     }
     q('wbChips').innerHTML = chips;
 
+    var fc = wb.forecast;
+    q('wbFc').hidden = !fc;
+    if (fc) {
+      var hm = function (t) { return new Date(t * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+      q('wbFcKwh').textContent = fc.kwh === null ? '–' : 'heute ' + fmt(fc.kwh, 1, ' kWh');
+      q('wbFcWin').textContent = (fc.start && fc.end && fc.kwh > 0 ? 'Fenster ' + hm(fc.start) + '–' + hm(fc.end) + ' Uhr' : 'Heute kein Solarfenster mehr')
+        + (fc.tomorrow !== null ? ' · morgen ' + fmt(fc.tomorrow, 1, ' kWh') : '');
+      q('wbFcText').textContent = fc.text || '';
+    }
+
     renderBoolSeg('wbModeSeg', 'wbMode', wb.mode, 'wbmode');
     renderBoolSeg('wbPhaseSeg', 'wbPh', wb.phases, 'wbphases');
   }
@@ -372,4 +389,4 @@
   q('tMinus').onclick = function () { stepTemp(-0.5); };
   q('tPlus').onclick = function () { stepTemp(0.5); };
 </script>
-<script>handleMessage(JSON.stringify({model:'Megane E-Tech',vin:'VF1RCB00000000000',battery:68,autonomy:287,plug:1,plugText:'Eingesteckt',chargeState:10,chargeText:'Lädt',charging:true,chargeMode:1,power:7.4,remaining:95,batteryTemp:18,mileage:23412.5,outsideTemp:4.5,hvac:false,targetTemp:21,schedules:[{id:1,activated:true,monday:{startTime:'T21:00Z',duration:420},tuesday:{startTime:'T21:00Z',duration:420},friday:{startTime:'T21:00Z',duration:420}}],lat:48.7,lon:9.1,lastUpdate:Math.floor(Date.now()/1000),status:102,error:'',wallbox:{power:3680,solarPower:2900,energy:12.4,solarEnergy:9.1,online:'OK',ctrl:{available:true,solar:true,blocked:false,charging:true,locked:true,plugged:true,onePhase:true},mode:{value:true,texts:['Mischbetrieb','Sonnenmodus'],actionable:true},phases:{value:true,texts:['3-phasig','1-phasig'],actionable:true}}}));</script>
+<script>handleMessage(JSON.stringify({model:'Megane E-Tech',vin:'VF1RCB00000000000',battery:68,autonomy:287,plug:1,plugText:'Eingesteckt',chargeState:10,chargeText:'Lädt',charging:true,chargeMode:1,power:7.4,remaining:95,batteryTemp:18,mileage:23412.5,outsideTemp:4.5,hvac:false,targetTemp:21,schedules:[{id:1,activated:true,monday:{startTime:'T21:00Z',duration:420},tuesday:{startTime:'T21:00Z',duration:420},friday:{startTime:'T21:00Z',duration:420}}],lat:48.7,lon:9.1,lastUpdate:Math.floor(Date.now()/1000),status:102,error:'',wallbox:{power:3680,solarPower:2900,energy:12.4,solarEnergy:9.1,online:'OK',ctrl:{available:true,solar:true,blocked:false,charging:true,locked:true,plugged:true,onePhase:true},mode:{value:true,texts:['Mischbetrieb','Sonnenmodus'],actionable:true},phases:{value:true,texts:['3-phasig','1-phasig'],actionable:true},forecast:{start:1794657000,end:1794666000,kwh:7.5,tomorrow:5.5,text:'Sonnenmodus: heute noch 7,5 kWh Solarladen möglich.'}}}));</script>

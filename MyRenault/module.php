@@ -130,7 +130,8 @@ class MyRenault extends IPSModule
 
     // ------------------------------------------------------------------ E3DC-Wallbox
 
-    private const WB_PROPS = ['WBPower', 'WBSolarPower', 'WBCtrl', 'WBMode', 'WBPhases', 'WBEnergy', 'WBSolarEnergy', 'WBOnline'];
+    private const WB_PROPS = ['WBPower', 'WBSolarPower', 'WBCtrl', 'WBMode', 'WBPhases', 'WBEnergy', 'WBSolarEnergy', 'WBOnline',
+        'WBFcStart', 'WBFcEnd', 'WBFcKWh', 'WBFcKWhTomorrow', 'WBFcText'];
 
     private function watchWallbox(): void
     {
@@ -197,6 +198,17 @@ class MyRenault extends IPSModule
         ];
         if (($id = $this->wbVar('WBOnline')) > 0) {
             $wb['online'] = GetValueFormatted($id);
+        }
+        // optionale Solarprognose (z. B. Skript "W51 Wallbox Solarprognose"): Fenster als Unix-Zeit, Mengen in kWh, Empfehlung als Text
+        $wb['forecast'] = null;
+        if ($this->wbVar('WBFcKWh') > 0 || $this->wbVar('WBFcText') > 0) {
+            $wb['forecast'] = [
+                'start'    => ($id = $this->wbVar('WBFcStart')) ? (int) GetValue($id) : 0,
+                'end'      => ($id = $this->wbVar('WBFcEnd')) ? (int) GetValue($id) : 0,
+                'kwh'      => $num('WBFcKWh'),
+                'tomorrow' => $num('WBFcKWhTomorrow'),
+                'text'     => ($id = $this->wbVar('WBFcText')) ? (string) GetValue($id) : ''
+            ];
         }
         if ($ctrl > 0) {
             // E3DC WallBox_x_CTRL (Register 40088 ff.), Bitfeld

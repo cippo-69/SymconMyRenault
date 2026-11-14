@@ -36,6 +36,7 @@ Eine bereits in IP-Symcon eingebundene E3DC-Wallbox kann mit in der Kachel ersch
 | Lademodus / Phasen | Bool-Variablen; schaltbar aus der Kachel, wenn die Variable eine Aktion hat. Die Beschriftung kommt aus dem Variablenprofil |
 | Wirkarbeit / Solar-Wirkarbeit | Energie in kWh |
 | Online-Status | beliebige Statusvariable, wird formatiert angezeigt |
+| Solarprognose (optional) | Solarfenster Beginn/Ende (Unix-Zeit), Solarlademenge heute/morgen (kWh), Empfehlung (Text), z. B. aus einem eigenen Prognoseskript |
 
 Die Kachel zeigt Ladeleistung, Solaranteil, Steckerstatus und die Schalter für Lademodus und Phasen. Sie aktualisiert sich sofort, wenn sich eine der Variablen ändert. Geschaltet wird über die Aktion der Variablen selbst (`RequestAction`), also über deine vorhandenen Skripte.
 

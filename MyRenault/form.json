@@ -31,7 +31,13 @@
                 { "type": "SelectVariable", "name": "WBPhases", "caption": "Phasen (Bool, schaltbar)" },
                 { "type": "SelectVariable", "name": "WBEnergy", "caption": "Wallbox-Wirkarbeit (kWh)" },
                 { "type": "SelectVariable", "name": "WBSolarEnergy", "caption": "Wallbox-Solar-Wirkarbeit (kWh)" },
-                { "type": "SelectVariable", "name": "WBOnline", "caption": "Online-/Verfügbarkeitsstatus" }
+                { "type": "SelectVariable", "name": "WBOnline", "caption": "Online-/Verfügbarkeitsstatus" },
+                { "type": "Label", "caption": "Solarprognose (optional, z. B. aus einem eigenen Prognoseskript)" },
+                { "type": "SelectVariable", "name": "WBFcStart", "caption": "Solarfenster heute Beginn (Unix-Zeit)" },
+                { "type": "SelectVariable", "name": "WBFcEnd", "caption": "Solarfenster heute Ende (Unix-Zeit)" },
+                { "type": "SelectVariable", "name": "WBFcKWh", "caption": "Solarlademenge heute (kWh)" },
+                { "type": "SelectVariable", "name": "WBFcKWhTomorrow", "caption": "Solarlademenge morgen (kWh)" },
+                { "type": "SelectVariable", "name": "WBFcText", "caption": "Empfehlung (Text)" }
             ]
         },
         {
