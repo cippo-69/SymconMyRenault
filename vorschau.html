@@ -105,6 +105,18 @@
         <button id="modeNow">Sofort laden</button>
         <button id="modeSched">Nach Zeitplan</button>
       </div>
+      <div class="muted" id="modeHint" hidden></div>
+      <div class="wbfc" id="wbZl" hidden>
+        <div class="temp">
+          <button class="icon" id="zlTMinus" aria-label="Ziel senken">−</button>
+          <div style="text-align:center"><div class="big" id="zlTarget" style="font-size:22px">–</div><div class="muted">Ziel</div></div>
+          <button class="icon" id="zlTPlus" aria-label="Ziel erhöhen">+</button>
+          <button class="icon" id="zlDMinus" aria-label="Abfahrt früher">−</button>
+          <div style="text-align:center"><div class="big" id="zlDep" style="font-size:22px">–</div><div class="muted">Abfahrt</div></div>
+          <button class="icon" id="zlDPlus" aria-label="Abfahrt später">+</button>
+        </div>
+        <div class="muted" id="zlStatus"></div>
+      </div>
       <div class="row">
         <button class="grow primary" id="btnCharge">Laden starten</button>
       </div>
@@ -162,26 +174,11 @@
         <div class="muted" id="wbFcWin">–</div>
         <div class="muted" id="wbFcText"></div>
       </div>
-      <div class="wbfc" id="wbZl" hidden>
-        <div class="wbfc-head" style="color:var(--mrn-blue)"><span>◎ Zielladen</span><span id="zlHead">–</span></div>
-        <div class="seg" id="zlSeg" role="group" aria-label="Zielladen">
-          <button id="zl0">Aus</button><button id="zl1">An</button>
-        </div>
-        <div class="temp">
-          <button class="icon" id="zlTMinus" aria-label="Ziel senken">−</button>
-          <div style="text-align:center"><div class="big" id="zlTarget" style="font-size:22px">–</div><div class="muted">Ziel</div></div>
-          <button class="icon" id="zlTPlus" aria-label="Ziel erhöhen">+</button>
-          <button class="icon" id="zlDMinus" aria-label="Abfahrt früher">−</button>
-          <div style="text-align:center"><div class="big" id="zlDep" style="font-size:22px">–</div><div class="muted">Abfahrt</div></div>
-          <button class="icon" id="zlDPlus" aria-label="Abfahrt später">+</button>
-        </div>
-        <div class="muted" id="zlStatus"></div>
-      </div>
     </div>
 
     <!-- Zeitplan & Fahrzeug -->
     <div class="card">
-      <h3>Ladezeitplan</h3>
+      <h3 id="schedHead">Ladezeitplan</h3>
       <div class="sched" id="sched"><span class="muted">Kein Zeitplan</span></div>
       <h3 style="margin-top:4px">Fahrzeug</h3>
       <div class="facts">
@@ -282,8 +279,14 @@
     q('remaining').textContent = d.charging && r > 0 ? Math.floor(r / 60) + ' h ' + String(r % 60).padStart(2, '0') + ' min' : '–';
     q('batTemp').textContent = fmt(d.batteryTemp, 0, ' °C');
 
-    q('modeNow').classList.toggle('on', d.chargeMode !== 1);
-    q('modeSched').classList.toggle('on', d.chargeMode === 1);
+    // Mit Zielladen: Wahl "Sofort laden" / "Zielladen" (beide setzen den Fahrzeug-Lademodus auf Sofort); sonst Sofort / Zeitplan
+    var zl = zlInfo();
+    q('modeSched').textContent = zl ? 'Zielladen' : 'Nach Zeitplan';
+    q('modeNow').classList.toggle('on', zl ? !zl.active : d.chargeMode !== 1);
+    q('modeSched').classList.toggle('on', zl ? !!zl.active : d.chargeMode === 1);
+    q('modeHint').hidden = !(zl && d.chargeMode === 1);
+    q('modeHint').textContent = '⚠ Fahrzeug steht auf „Nach Zeitplan“ – mit Sofort laden oder Zielladen wird es umgestellt.';
+    q('schedHead').hidden = q('sched').hidden = !!zl;
 
     var btnC = q('btnCharge');
     btnC.textContent = d.charging ? 'Laden stoppen' : 'Laden starten';
@@ -335,7 +338,7 @@
 
   function renderWallbox(wb) {
     q('wbCard').hidden = !wb;
-    if (!wb) return;
+    if (!wb) { q('wbZl').hidden = true; return; }
     var p = wb.power, s = wb.solarPower;
     q('wbPower').textContent = p === null ? '–' : fmt(p / 1000, 1, ' kW');
     var share = (p > 50 && s !== null) ? Math.max(0, Math.min(100, Math.round(s / p * 100))) : null;
@@ -376,18 +379,19 @@
 
   // Zielladen: Ziel-% und Abfahrtsstunde, geschaltet über die Aktion der Variablen
   var zlPending = {};
+  // Zielladen nutzbar, wenn Ziel und Aktiv-Schalter zugewiesen sind
+  function zlInfo() {
+    var t = mrn.wallbox && mrn.wallbox.target;
+    return (t && t.active !== null) ? t : null;
+  }
   function renderTarget(t) {
-    q('wbZl').hidden = !t;
+    q('wbZl').hidden = !t || !t.active;
     if (!t) return;
     var ziel = zlPending.target !== undefined ? zlPending.target : t.target;
     var dep = zlPending.departure !== undefined ? zlPending.departure : t.departure;
     q('zlTarget').textContent = ziel + ' %';
     q('zlDep').textContent = dep === null ? '–' : String(dep).padStart(2, '0') + ':00';
-    q('zlHead').textContent = t.active === false ? 'aus' : (t.active ? 'aktiv' : '');
-    q('zlSeg').hidden = t.active === null;
-    q('zl0').classList.toggle('on', t.active === false);
-    q('zl1').classList.toggle('on', t.active === true);
-    ['zl0', 'zl1', 'zlTMinus', 'zlTPlus'].forEach(function (id) { q(id).disabled = !t.actionable || locked('zl'); });
+    ['zlTMinus', 'zlTPlus'].forEach(function (id) { q(id).disabled = !t.actionable; });
     ['zlDMinus', 'zlDPlus'].forEach(function (id) { q(id).disabled = !t.actionable || dep === null; });
     q('zlStatus').textContent = t.status || '';
   }
@@ -416,13 +420,26 @@
 
   q('btnRefresh').onclick = function () { send('Refresh', true, 'Aktualisiere …'); };
   q('btnCharge').onclick = function () { send('Charging', !mrn.charging, mrn.charging ? 'Laden wird gestoppt …' : 'Laden wird gestartet …', 'charge'); };
-  q('modeNow').onclick = function () { if (mrn.chargeMode !== 0) send('ChargeMode', 0, 'Lademodus: Sofort', 'mode'); };
-  q('modeSched').onclick = function () { if (mrn.chargeMode !== 1) send('ChargeMode', 1, 'Lademodus: Zeitplan', 'mode'); };
+  // ChargePlan: 0 = Sofort laden (Zielladen aus), 1 = Zielladen; das Modul stellt das Fahrzeug bei Bedarf auf Sofort
+  function choosePlan(v) {
+    var zl = zlInfo();
+    if (!!zl.active === !!v && mrn.chargeMode === 0) return;
+    send('ChargePlan', v, v ? 'Zielladen an' : 'Sofort laden', 'mode', mrn.chargeMode !== 0 ? LOCK_MS : 5000);
+  }
+  q('modeNow').onclick = function () {
+    if (zlInfo()) choosePlan(0);
+    else if (mrn.chargeMode !== 0) send('ChargeMode', 0, 'Lademodus: Sofort', 'mode');
+  };
+  q('modeSched').onclick = function () {
+    if (zlInfo()) choosePlan(1);
+    else if (mrn.chargeMode !== 1) send('ChargeMode', 1, 'Lademodus: Zeitplan', 'mode');
+  };
   q('btnHvac').onclick = function () { send('HvacStatus', !mrn.hvac, mrn.hvac ? 'Klimatisierung wird gestoppt …' : 'Klimatisierung auf ' + fmt(mrn.targetTemp, 1, ' °C') + ' …', 'hvac'); };
   [0, 1].forEach(function (v) {
     q('wbMode' + v).onclick = function () {
       var m = mrn.wallbox && mrn.wallbox.mode;
-      if (m && m.value !== !!v) send('WBMode', !!v, 'Wallbox: ' + m.texts[v], 'wbmode', 10000);
+      var zl = zlInfo();
+      if (m && m.value !== !!v) send('WBMode', !!v, 'Wallbox: ' + m.texts[v] + (zl && zl.active ? ' – Zielladen pausiert bis zur Abfahrt' : ''), 'wbmode', 10000);
     };
     q('wbPh' + v).onclick = function () {
       var ph = mrn.wallbox && mrn.wallbox.phases;
@@ -435,12 +452,6 @@
     clearTimeout(stepTemp._t);
     stepTemp._t = setTimeout(function () { send('TargetTemperature', t); }, 600);
   }
-  [0, 1].forEach(function (v) {
-    q('zl' + v).onclick = function () {
-      var t = mrn.wallbox && mrn.wallbox.target;
-      if (t && t.active !== !!v) send('WBZlActive', !!v, v ? 'Zielladen an' : 'Zielladen aus', 'zl', 5000);
-    };
-  });
   q('zlTMinus').onclick = function () { stepTarget('target', -1); };
   q('zlTPlus').onclick = function () { stepTarget('target', 1); };
   q('zlDMinus').onclick = function () { stepTarget('departure', -1); };
@@ -448,4 +459,4 @@
   q('tMinus').onclick = function () { stepTemp(-0.5); };
   q('tPlus').onclick = function () { stepTemp(0.5); };
 </script>
-<script>handleMessage(JSON.stringify({model:'Megane E-Tech',vin:'VF1RCB00000000000',battery:68,autonomy:287,plug:1,plugText:'Eingesteckt',chargeState:10,chargeText:'Lädt',charging:true,chargeMode:1,power:7.4,remaining:95,batteryTemp:18,mileage:23412.5,outsideTemp:4.5,hvac:false,targetTemp:21,schedules:[{id:1,activated:true,monday:{startTime:'T21:00Z',duration:420},tuesday:{startTime:'T21:00Z',duration:420},friday:{startTime:'T21:00Z',duration:420}}],lat:48.7,lon:9.1,lastUpdate:Math.floor(Date.now()/1000),status:102,error:'',wallbox:{target:{active:true,target:80,targetRange:[20,100,5],departure:7,depRange:[0,23,1],status:'Ziel 80 % bis morgen 07:00 (Twingo 45 %): Bedarf 10,6 kWh, Sonne 4,3 kWh (×0,8), Netz 6,3 kWh ab 05:00. Sonnenmodus bis 05:00.',actionable:true},power:3680,solarPower:2900,energy:12.4,solarEnergy:9.1,online:'OK',ctrl:{available:true,solar:true,blocked:false,charging:true,locked:true,plugged:true,onePhase:true},mode:{value:true,texts:['Mischbetrieb','Sonnenmodus'],actionable:true},phases:{value:true,texts:['3-phasig','1-phasig'],actionable:true},forecast:{start:1794657000,end:1794666000,kwh:7.5,tomorrow:5.5,text:'Sonnenmodus: heute noch 7,5 kWh Solarladen möglich.'}}}));</script>
+<script>handleMessage(JSON.stringify({model:'Megane E-Tech',vin:'VF1RCB00000000000',battery:68,autonomy:287,plug:1,plugText:'Eingesteckt',chargeState:10,chargeText:'Lädt',charging:true,chargeMode:0,power:7.4,remaining:95,batteryTemp:18,mileage:23412.5,outsideTemp:4.5,hvac:false,targetTemp:21,schedules:[{id:1,activated:true,monday:{startTime:'T21:00Z',duration:420},tuesday:{startTime:'T21:00Z',duration:420},friday:{startTime:'T21:00Z',duration:420}}],lat:48.7,lon:9.1,lastUpdate:Math.floor(Date.now()/1000),status:102,error:'',wallbox:{target:{active:true,target:80,targetRange:[20,100,5],departure:7,depRange:[0,23,1],status:'Ziel 80 % bis morgen 07:00 (Twingo 45 %): Bedarf 10,6 kWh, Sonne 4,3 kWh (×0,8), Netz 6,3 kWh ab 05:00. Sonnenmodus bis 05:00.',actionable:true},power:3680,solarPower:2900,energy:12.4,solarEnergy:9.1,online:'OK',ctrl:{available:true,solar:true,blocked:false,charging:true,locked:true,plugged:true,onePhase:true},mode:{value:true,texts:['Mischbetrieb','Sonnenmodus'],actionable:true},phases:{value:true,texts:['3-phasig','1-phasig'],actionable:true},forecast:{start:1794657000,end:1794666000,kwh:7.5,tomorrow:5.5,text:'Sonnenmodus: heute noch 7,5 kWh Solarladen möglich.'}}}));</script>

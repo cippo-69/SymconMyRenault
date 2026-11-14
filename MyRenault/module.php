@@ -331,6 +331,16 @@ class MyRenault extends IPSModule
             case 'WBZlActive':
                 $ok = $this->wbSwitch($Ident, (bool) $Value);
                 break;
+            case 'ChargePlan':
+                // Kachel mit Zielladen: 0 = Sofort laden (Zielladen aus), 1 = Zielladen an; Fahrzeug jeweils auf "Sofort"
+                $ok = true;
+                if ($this->GetValue('ChargeMode') !== 0) {
+                    $ok = $this->SetChargeMode(0);
+                }
+                if ($ok) {
+                    $ok = $this->wbSwitch('WBZlActive', (int) $Value === 1);
+                }
+                break;
             case 'WBZlTarget':
             case 'WBZlDeparture':
                 $ok = $this->wbSwitch($Ident, (int) $Value);

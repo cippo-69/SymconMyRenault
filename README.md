@@ -37,7 +37,9 @@ Eine bereits in IP-Symcon eingebundene E3DC-Wallbox kann mit in der Kachel ersch
 | Wirkarbeit / Solar-Wirkarbeit | Energie in kWh |
 | Online-Status | beliebige Statusvariable, wird formatiert angezeigt |
 | Solarprognose (optional) | Solarfenster Beginn/Ende (Unix-Zeit), Solarlademenge heute/morgen (kWh), Empfehlung (Text), z. B. aus einem eigenen Prognoseskript |
-| Zielladen (optional) | Aktiv (Bool), Ziel-Ladestand (%, Integer), Abfahrt (Stunde 0–23, Integer), Status (Text). Ziel und Abfahrt sind in der Kachel mit −/+ einstellbar; Schritte und Grenzen kommen aus dem Variablenprofil. Planung und Umschalten der Wallbox macht dein eigenes Skript |
+| Zielladen (optional) | Aktiv (Bool), Ziel-Ladestand (%, Integer), Abfahrt (Stunde 0–23, Integer), Status (Text). Planung und Umschalten der Wallbox macht dein eigenes Skript |
+
+Sind Zielladen-Aktiv und -Ziel zugewiesen, wird der Lademodus-Schalter in der Ladekarte zu **Sofort laden / Zielladen**. Beide Stellungen stellen das Fahrzeug auf „Sofort laden“; der Zeitplan des Fahrzeugs wird in der Kachel dann nicht mehr angezeigt. Bei „Zielladen“ erscheinen darunter Ziel und Abfahrt (mit −/+, Grenzen aus dem Variablenprofil) und der Status. Wer im Wallbox-Bereich bei aktivem Zielladen den Lademodus von Hand umschaltet, bekommt den Hinweis, dass das Zielladen bis zur Abfahrt pausiert (wenn dein Skript das so umsetzt).
 
 Die Kachel zeigt Ladeleistung, Solaranteil, Steckerstatus und die Schalter für Lademodus und Phasen. Sie aktualisiert sich sofort, wenn sich eine der Variablen ändert. Geschaltet wird über die Aktion der Variablen selbst (`RequestAction`), also über deine vorhandenen Skripte.
 
