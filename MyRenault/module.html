@@ -152,10 +152,21 @@
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2500);
   }
 
-  function send(ident, value, msg) {
+  // Sperre je Befehlsgruppe: das Fahrzeug weist neue Befehle ab, solange der vorige läuft (HTTP 409)
+  var LOCK_MS = 90000;
+  var locks = {};
+  function locked(group) { return group && locks[group] && locks[group] > Date.now(); }
+
+  function send(ident, value, msg, group) {
+    if (locked(group)) { toast('Vorheriger Befehl läuft noch …'); return; }
     if (typeof requestAction === 'function') { requestAction(ident, value); }
     else { console.log('requestAction', ident, value); }
     if (msg) toast(msg);
+    if (group) {
+      locks[group] = Date.now() + LOCK_MS;
+      setTimeout(render, LOCK_MS + 100);
+      render();
+    }
   }
 
   function utcToLocal(t) {
@@ -220,8 +231,10 @@
     var btnC = q('btnCharge');
     btnC.textContent = d.charging ? 'Laden stoppen' : 'Laden starten';
     btnC.className = 'grow ' + (d.charging ? 'danger' : 'primary');
-    btnC.disabled = d.plug !== 1 && !d.charging;
-    btnC.title = btnC.disabled ? 'Fahrzeug ist nicht eingesteckt' : '';
+    btnC.disabled = (d.plug !== 1 && !d.charging) || locked('charge');
+    btnC.title = locked('charge') ? 'Befehl wird übertragen' : (btnC.disabled ? 'Fahrzeug ist nicht eingesteckt' : '');
+    if (locked('charge')) btnC.textContent = 'Wird übertragen …';
+    q('modeNow').disabled = q('modeSched').disabled = locked('mode');
 
     q('target').textContent = fmt(d.targetTemp, 1, ' °C');
     q('outside').textContent = fmt(d.outsideTemp, 1, ' °C');
@@ -249,10 +262,10 @@
   }
 
   q('btnRefresh').onclick = function () { send('Refresh', true, 'Aktualisiere …'); };
-  q('btnCharge').onclick = function () { send('Charging', !mrn.charging, mrn.charging ? 'Laden wird gestoppt …' : 'Laden wird gestartet …'); };
-  q('modeNow').onclick = function () { if (mrn.chargeMode !== 0) send('ChargeMode', 0, 'Lademodus: Sofort'); };
-  q('modeSched').onclick = function () { if (mrn.chargeMode !== 1) send('ChargeMode', 1, 'Lademodus: Zeitplan'); };
-  q('btnHvac').onclick = function () { send('HvacStatus', !mrn.hvac, mrn.hvac ? 'Klimatisierung wird gestoppt …' : 'Klimatisierung auf ' + fmt(mrn.targetTemp, 1, ' °C') + ' …'); };
+  q('btnCharge').onclick = function () { send('Charging', !mrn.charging, mrn.charging ? 'Laden wird gestoppt …' : 'Laden wird gestartet …', 'charge'); };
+  q('modeNow').onclick = function () { if (mrn.chargeMode !== 0) send('ChargeMode', 0, 'Lademodus: Sofort', 'mode'); };
+  q('modeSched').onclick = function () { if (mrn.chargeMode !== 1) send('ChargeMode', 1, 'Lademodus: Zeitplan', 'mode'); };
+  q('btnHvac').onclick = function () { send('HvacStatus', !mrn.hvac, mrn.hvac ? 'Klimatisierung wird gestoppt …' : 'Klimatisierung auf ' + fmt(mrn.targetTemp, 1, ' °C') + ' …', 'hvac'); };
   function stepTemp(delta) {
     var t = Math.max(16, Math.min(27, (+mrn.targetTemp || 21) + delta));
     mrn.targetTemp = t; render();

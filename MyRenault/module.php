@@ -565,11 +565,40 @@ class MyRenault extends IPSModule
         }
         $data = json_decode($res['body'], true);
         if ($res['code'] >= 400) {
-            $err = is_array($data) ? ($data[0] ?? $data) : [];
-            $msg = $err['errorMessage'] ?? $err['message'] ?? $err['errorCode'] ?? trim(substr($res['body'], 0, 200));
-            throw new Exception('Kamereon HTTP ' . $res['code'] . ': ' . (is_string($msg) ? $msg : json_encode($msg)));
+            [$code, $msg] = $this->parseKamereonError($data, $res['body']);
+            if ($code === '409001' || stripos($msg, 'already in progress') !== false) {
+                throw new Exception('Das Fahrzeug bearbeitet noch einen vorherigen Befehl. Bitte 1–2 Minuten warten.', 409);
+            }
+            throw new Exception('Kamereon HTTP ' . $res['code'] . ': ' . $msg, $res['code']);
         }
         return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Kamereon verschachtelt Fehler teils mehrfach (errors[].errorMessage enthält wieder JSON).
+     * Liefert [innerster Fehlercode, innerste Meldung].
+     */
+    private function parseKamereonError($data, string $raw): array
+    {
+        $code = '';
+        $msg = '';
+        for ($depth = 0; $depth < 4 && is_array($data); $depth++) {
+            $err = $data['errors'][0] ?? $data['messages'][0] ?? $data[0] ?? $data;
+            if (!is_array($err)) {
+                break;
+            }
+            $code = (string) ($err['errorCode'] ?? $err['code'] ?? $code);
+            $m = $err['errorMessage'] ?? $err['message'] ?? '';
+            if (!is_string($m) || $m === '') {
+                break;
+            }
+            $msg = $m;
+            $data = json_decode($m, true); // weitere Ebene?
+        }
+        if ($msg === '') {
+            $msg = trim(substr($raw, 0, 200));
+        }
+        return [$code, $msg];
     }
 
     private function tryRead(string $version, string $endpoint): ?array
@@ -607,7 +636,11 @@ class MyRenault extends IPSModule
             $this->kamereon('POST', $path, ['data' => ['type' => $type, 'attributes' => $attributes]]);
         } catch (Exception $e) {
             $this->lastError = $e->getMessage();
-            $this->LogMessage('Befehl ' . $type . ' fehlgeschlagen: ' . $e->getMessage(), KL_ERROR);
+            $this->LogMessage('Befehl ' . $type . ' fehlgeschlagen: ' . $e->getMessage(), $e->getCode() === 409 ? KL_WARNING : KL_ERROR);
+            if ($e->getCode() === 409) {
+                // vorheriger Befehl läuft noch → Stand bald neu abfragen, damit die Anzeige stimmt
+                $this->SetTimerInterval('QuickRefresh', 90 * 1000);
+            }
             return false;
         }
         $this->LogMessage('Befehl ' . $type . ' gesendet: ' . json_encode($attributes), KL_MESSAGE);
