@@ -131,7 +131,7 @@ class MyRenault extends IPSModule
     // ------------------------------------------------------------------ E3DC-Wallbox
 
     private const WB_PROPS = ['WBPower', 'WBSolarPower', 'WBCtrl', 'WBMode', 'WBPhases', 'WBEnergy', 'WBSolarEnergy', 'WBOnline',
-        'WBFcStart', 'WBFcEnd', 'WBFcKWh', 'WBFcKWhTomorrow', 'WBFcText', 'WBZlActive', 'WBZlTarget', 'WBZlDeparture', 'WBZlStatus'];
+        'WBFcStart', 'WBFcEnd', 'WBFcKWh', 'WBFcKWhTomorrow', 'WBFcText', 'WBZlActive', 'WBZlTarget', 'WBZlDeparture', 'WBZlStatus', 'WBZlDay'];
 
     private function watchWallbox(): void
     {
@@ -224,7 +224,22 @@ class MyRenault extends IPSModule
             };
             $did = $this->wbVar('WBZlDeparture');
             $aid = $this->wbVar('WBZlActive');
+            // optionaler Abfahrtstag: Integer mit Profil-Assoziationen (z. B. 0 = täglich, 1–7 = Mo–So)
+            $wid = $this->wbVar('WBZlDay');
+            $dayTexts = [];
+            if ($wid) {
+                $v = IPS_GetVariable($wid);
+                $p = $v['VariableCustomProfile'] !== '' ? $v['VariableCustomProfile'] : $v['VariableProfile'];
+                if ($p !== '' && IPS_VariableProfileExists($p)) {
+                    foreach (IPS_GetVariableProfile($p)['Associations'] as $a) {
+                        $dayTexts[(int) $a['Value']] = $a['Name'];
+                    }
+                }
+            }
             $wb['target'] = [
+                'day'        => $wid ? (int) GetValue($wid) : null,
+                'dayRange'   => $wid ? $range($wid, [0, 7, 1]) : [0, 7, 1],
+                'dayTexts'   => (object) $dayTexts,
                 'active'     => $aid ? (bool) GetValue($aid) : null,
                 'target'     => (int) GetValue($tid),
                 'targetRange' => $range($tid, [20, 100, 5]),
@@ -344,6 +359,7 @@ class MyRenault extends IPSModule
                 break;
             case 'WBZlTarget':
             case 'WBZlDeparture':
+            case 'WBZlDay':
                 $ok = $this->wbSwitch($Ident, (int) $Value);
                 break;
             default:

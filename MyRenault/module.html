@@ -113,6 +113,11 @@
           <button class="icon" id="zlTMinus" aria-label="Ziel senken">−</button>
           <div style="text-align:center"><div class="big" id="zlTarget" style="font-size:22px">–</div><div class="muted">Ziel</div></div>
           <button class="icon" id="zlTPlus" aria-label="Ziel erhöhen">+</button>
+        </div>
+        <div class="temp">
+          <button class="icon" id="zlWMinus" aria-label="Abfahrtstag zurück">−</button>
+          <div style="text-align:center"><div class="big" id="zlDay" style="font-size:22px">–</div><div class="muted">Tag</div></div>
+          <button class="icon" id="zlWPlus" aria-label="Abfahrtstag weiter">+</button>
           <button class="icon" id="zlDMinus" aria-label="Abfahrt früher">−</button>
           <div style="text-align:center"><div class="big" id="zlDep" style="font-size:22px">–</div><div class="muted">Abfahrt</div></div>
           <button class="icon" id="zlDPlus" aria-label="Abfahrt später">+</button>
@@ -398,6 +403,11 @@
     var dep = zlPending.departure !== undefined ? zlPending.departure : t.departure;
     q('zlTarget').textContent = ziel + ' %';
     q('zlDep').textContent = dep === null ? '–' : String(dep).padStart(2, '0') + ':00';
+    // Abfahrtstag (optional): Texte aus dem Variablenprofil, z. B. 0 = täglich, 1–7 = Mo–So
+    var day = zlPending.day !== undefined ? zlPending.day : t.day;
+    q('zlWMinus').hidden = q('zlWPlus').hidden = q('zlDay').parentNode.hidden = (day === null || day === undefined);
+    if (day !== null && day !== undefined) q('zlDay').textContent = (t.dayTexts && t.dayTexts[day]) || String(day);
+    ['zlWMinus', 'zlWPlus'].forEach(function (id) { q(id).disabled = !t.actionable; });
     ['zlTMinus', 'zlTPlus'].forEach(function (id) { q(id).disabled = !t.actionable; });
     ['zlDMinus', 'zlDPlus'].forEach(function (id) { q(id).disabled = !t.actionable || dep === null; });
     q('zlStatus').textContent = t.status || '';
@@ -405,15 +415,17 @@
   function stepTarget(key, delta) {
     var t = mrn.wallbox && mrn.wallbox.target;
     if (!t || !t.actionable) return;
-    var r = key === 'target' ? t.targetRange : t.depRange;
+    var r = key === 'target' ? t.targetRange : (key === 'day' ? t.dayRange : t.depRange);
     var cur = zlPending[key] !== undefined ? zlPending[key] : t[key];
     var v = +cur + delta * r[2];
-    if (key === 'departure') v = ((v - r[0]) % (r[1] - r[0] + 1) + (r[1] - r[0] + 1)) % (r[1] - r[0] + 1) + r[0]; // Stunde rundum
+    if (key !== 'target') v = ((v - r[0]) % (r[1] - r[0] + 1) + (r[1] - r[0] + 1)) % (r[1] - r[0] + 1) + r[0]; // Stunde und Tag rundum
     else v = Math.max(r[0], Math.min(r[1], v));
     zlPending[key] = v; render();
     clearTimeout(stepTarget['_' + key]);
+    var ident = { target: 'WBZlTarget', departure: 'WBZlDeparture', day: 'WBZlDay' }[key];
+    var msg = key === 'target' ? 'Ziel ' + v + ' %' : (key === 'day' ? 'Abfahrtstag ' + ((t.dayTexts && t.dayTexts[v]) || v) : 'Abfahrt ' + String(v).padStart(2, '0') + ':00');
     stepTarget['_' + key] = setTimeout(function () {
-      send(key === 'target' ? 'WBZlTarget' : 'WBZlDeparture', v, key === 'target' ? 'Ziel ' + v + ' %' : 'Abfahrt ' + String(v).padStart(2, '0') + ':00');
+      send(ident, v, msg);
       setTimeout(function () { delete zlPending[key]; render(); }, 3000);
     }, 700);
   }
@@ -465,6 +477,8 @@
   }
   q('zlTMinus').onclick = function () { stepTarget('target', -1); };
   q('zlTPlus').onclick = function () { stepTarget('target', 1); };
+  q('zlWMinus').onclick = function () { stepTarget('day', -1); };
+  q('zlWPlus').onclick = function () { stepTarget('day', 1); };
   q('zlDMinus').onclick = function () { stepTarget('departure', -1); };
   q('zlDPlus').onclick = function () { stepTarget('departure', 1); };
   q('tMinus').onclick = function () { stepTemp(-0.5); };

@@ -42,6 +42,7 @@
                 { "type": "SelectVariable", "name": "WBZlActive", "caption": "Zielladen aktiv (Bool, schaltbar)" },
                 { "type": "SelectVariable", "name": "WBZlTarget", "caption": "Ziel-Ladestand (%, Integer, schaltbar)" },
                 { "type": "SelectVariable", "name": "WBZlDeparture", "caption": "Abfahrt (Stunde 0–23, Integer, schaltbar)" },
+                { "type": "SelectVariable", "name": "WBZlDay", "caption": "Abfahrtstag (Integer mit Profiltexten, z. B. 0 = täglich, 1–7 = Mo–So, schaltbar)" },
                 { "type": "SelectVariable", "name": "WBZlStatus", "caption": "Zielladen-Status (Text)" }
             ]
         },

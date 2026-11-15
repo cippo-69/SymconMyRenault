@@ -6,9 +6,11 @@ Bidirektionale Anbindung von Renault-Elektrofahrzeugen (ZOE, Megane E-Tech, Scen
 
 | Bereich | Lesen | Schreiben |
 |---|---|---|
-| Laden | Akkustand, Reichweite, Stecker, Ladestatus, Ladeleistung, Restladezeit, Akkutemperatur | Laden starten/stoppen, Lademodus (Sofort / Zeitplan), Ladezeitplan |
+| Laden | Akkustand, Reichweite, Stecker, Ladestatus, Ladeleistung, Restladezeit, Akkutemperatur | Laden starten/stoppen, Lademodus (Sofort / Zeitplan) |
 | Klima | Klimastatus, Außentemperatur | Vorklimatisierung starten/stoppen mit Zieltemperatur (16–27 °C) |
 | Fahrzeug | Kilometerstand, GPS-Position | – |
+
+Ab Version 1.8 bietet die Ladekarte der Kachel die Wahl „Sofort laden / Zielladen“; beide stellen das Fahrzeug auf „Sofort laden“, die Planung übernimmt das Zielladen-Skript. Der Renault-Ladezeitplan ist per API nicht schreibbar (HTTP 403) und wird nicht mehr angeboten.
 
 Alle schaltbaren Variablen (`Laden`, `Lademodus`, `Klimatisierung`, `Zieltemperatur`) haben eine Aktion und funktionieren auch im klassischen WebFront, in Ablaufplänen und Skripten.
 
@@ -37,7 +39,7 @@ Eine bereits in IP-Symcon eingebundene E3DC-Wallbox kann mit in der Kachel ersch
 | Wirkarbeit / Solar-Wirkarbeit | Energie in kWh |
 | Online-Status | beliebige Statusvariable, wird formatiert angezeigt |
 | Solarprognose (optional) | Solarfenster Beginn/Ende (Unix-Zeit), Solarlademenge heute/morgen (kWh), Empfehlung (Text), z. B. aus einem eigenen Prognoseskript |
-| Zielladen (optional) | Aktiv (Bool), Ziel-Ladestand (%, Integer), Abfahrt (Stunde 0–23, Integer), Status (Text). Planung und Umschalten der Wallbox macht dein eigenes Skript |
+| Zielladen (optional) | Aktiv (Bool), Ziel-Ladestand (%, Integer), Abfahrt (Stunde 0–23, Integer), Abfahrtstag (Integer, Texte aus dem Profil, z. B. 0 = täglich, 1–7 = Mo–So), Status (Text). Planung und Umschalten der Wallbox macht dein eigenes Skript |
 
 Sind Zielladen-Aktiv und -Ziel zugewiesen, wird der Lademodus-Schalter in der Ladekarte zu **Sofort laden / Zielladen**. Beide Stellungen stellen das Fahrzeug auf „Sofort laden“; der Zeitplan des Fahrzeugs wird in der Kachel dann nicht mehr angezeigt. Bei „Zielladen“ erscheinen darunter Ziel und Abfahrt (mit −/+, Grenzen aus dem Variablenprofil) und der Status. Wer im Wallbox-Bereich bei aktivem Zielladen den Lademodus von Hand umschaltet, bekommt den Hinweis, dass das Zielladen bis zur Abfahrt pausiert (wenn dein Skript das so umsetzt).
 
