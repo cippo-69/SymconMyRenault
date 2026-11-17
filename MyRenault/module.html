@@ -3,14 +3,24 @@
     --mrn-surface: rgba(127,127,127,.12);
     --mrn-line: rgba(127,127,127,.25);
     --mrn-muted: rgba(127,127,127,1);
-    --mrn-green: #2e9e5b;
-    --mrn-amber: #e0a100;
-    --mrn-red: #d23c3c;
-    --mrn-blue: #2f7fd6;
+    /* Farbkonzept W5x: green = Tannengrün (Akzent, lädt), amber = Ginster (Sonne/PV), red = Signalrot, blue = Akzent (Bedienung) */
+    --mrn-green: #2F6B4F;
+    --mrn-amber: #7A6000;
+    --mrn-red: #C8321F;
+    --mrn-blue: #2F6B4F;
+    --mrn-on: #fff;          /* Schrift auf Akzent-/Alarmfläche */
+  }
+  /* Dark Mode der Visu (erkannt an der hellen Schriftfarbe, wie in den anderen W5x-Kacheln) */
+  body.dark {
+    --mrn-green: #74B892;
+    --mrn-amber: #F2CF63;
+    --mrn-red: #FF5A47;
+    --mrn-blue: #74B892;
+    --mrn-on: #1E2224;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: transparent; }
-  #mrn { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: inherit;
+  #mrn { font-family: 'Poppins', 'Work Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: inherit;
          height: 100%; padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow: auto; font-size: 14px; }
   /* Abstand oben: Symcon blendet links oben den Kachelnamen ein */
   .head { display: flex; align-items: center; gap: 8px; margin-top: 28px; }
@@ -20,9 +30,9 @@
            border-radius: 10px; padding: 8px 12px; cursor: pointer; transition: filter .15s, opacity .15s; }
   button:hover { filter: brightness(1.15); }
   button:disabled { opacity: .5; cursor: default; }
-  button.primary { background: var(--mrn-green); border-color: var(--mrn-green); color: #fff; }
-  button.danger { background: var(--mrn-red); border-color: var(--mrn-red); color: #fff; }
-  button.blue { background: var(--mrn-blue); border-color: var(--mrn-blue); color: #fff; }
+  button.primary { background: var(--mrn-green); border-color: var(--mrn-green); color: var(--mrn-on); }
+  button.danger { background: var(--mrn-red); border-color: var(--mrn-red); color: var(--mrn-on); }
+  button.blue { background: var(--mrn-blue); border-color: var(--mrn-blue); color: var(--mrn-on); }
   button.icon { padding: 6px 10px; border-radius: 999px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
   .card { background: var(--mrn-surface); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -40,7 +50,7 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .seg { display: flex; border: 1px solid var(--mrn-line); border-radius: 10px; overflow: hidden; }
   .seg button { flex: 1; border: 0; border-radius: 0; background: transparent; }
-  .seg button.on { background: var(--mrn-blue); color: #fff; }
+  .seg button.on { background: var(--mrn-blue); color: var(--mrn-on); }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .row > button.grow { flex: 1; }
   .temp { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -50,7 +60,7 @@
   .sched .item { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--mrn-line); padding-top: 6px; }
   .days { display: flex; gap: 3px; }
   .days b { width: 22px; height: 22px; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; background: var(--mrn-line); opacity: .45; }
-  .days b.on { background: var(--mrn-green); color: #fff; opacity: 1; }
+  .days b.on { background: var(--mrn-green); color: var(--mrn-on); opacity: 1; }
   .err { color: var(--mrn-red); font-size: 12px; }
   .toast { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); background: rgba(0,0,0,.8); color: #fff;
            padding: 6px 12px; border-radius: 8px; font-size: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; }
@@ -66,6 +76,16 @@
   #wbZl button.icon { padding: 4px 8px; }
   .wbbar { height: 8px; border-radius: 999px; background: var(--mrn-line); overflow: hidden; }
   .wbbar span { display: block; height: 100%; width: 0; background: var(--mrn-amber); transition: width .6s; }
+  /* kleine Kachel (< 300 px Höhe): nur Akkustand, Stecker/Ladezustand und Ladeart */
+  body.compact #mrn { padding: 8px 12px; gap: 6px; }
+  body.compact .head .sub, body.compact #btnRefresh, body.compact .card h3, body.compact .facts,
+  body.compact #modeHint, body.compact #wbZl, body.compact #btnCharge, body.compact .grid > .card:not(:first-child) { display: none !important; }
+  body.compact .head { margin-top: 26px; }
+  body.compact .card { padding: 8px 10px; gap: 8px; background: transparent; }
+  body.compact .ring { width: 76px; height: 76px; }
+  body.compact .ring svg { width: 76px; height: 76px; }
+  body.compact .ring .pct { font-size: 20px; }
+  body.compact .seg button { padding: 6px 8px; font-size: 13px; }
 </style>
 
 <div id="mrn">
@@ -431,7 +451,16 @@
   }
 
   // Wird von IP-Symcon aufgerufen (UpdateVisualizationValue / initial)
+  /* Hell/Dunkel: helle Schriftfarbe der Visu = Dark Mode; ohne lesbare Farbe die Systemeinstellung. Dazu die Größenstufe. */
+  function mrnTheme() {
+    var b = document.body, m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(getComputedStyle(b).color || '');
+    var dark = m ? (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) / 255 > 0.5 : !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    b.classList.toggle('dark', dark);
+    b.classList.toggle('compact', window.innerHeight < 300);
+  }
+  window.addEventListener('resize', mrnTheme);
   function handleMessage(data) {
+    mrnTheme();
     var d = typeof data === 'string' ? JSON.parse(data) : data;
     for (var k in d) { mrn[k] = d[k]; }
     render();
