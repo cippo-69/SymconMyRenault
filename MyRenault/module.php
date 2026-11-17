@@ -312,9 +312,24 @@ class MyRenault extends IPSModule
 
     // ------------------------------------------------------------------ Visualisierung (Kachel)
 
+    /** Farben aus dem Modul „Visu Design“ (W5D); ohne Instanz gelten die Vorgaben im module.html. */
+    private function DesignStyle(): string
+    {
+        $guid = '{018EEC85-8FFC-4E1F-A966-702C4BBDC2E8}';
+        if (!IPS_ModuleExists($guid) || !function_exists('W5D_GetCSS')) {
+            return '';
+        }
+        $ids = IPS_GetInstanceListByModuleID($guid);
+        if (count($ids) === 0) {
+            return '';
+        }
+        sort($ids);
+        return '<style>' . W5D_GetCSS($ids[0]) . '</style>';
+    }
+
     public function GetVisualizationTile()
     {
-        $html = file_get_contents(__DIR__ . '/module.html');
+        $html = $this->DesignStyle() . file_get_contents(__DIR__ . '/module.html');
         return $html . '<script>handleMessage(' . json_encode(json_encode($this->getVisuData())) . ');</script>';
     }
 

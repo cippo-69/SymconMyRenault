@@ -84,3 +84,7 @@ elseif ($ueberschuss < 500) MRN_StopCharging(12345);
 - **Neuere Modelle** (Megane E-Tech, Scenic, R5, R4): Für Laden Start/Pause die Option *KCM-Endpunkt* aktivieren. Nicht jedes Fahrzeug unterstützt jeden Endpunkt; nicht verfügbare Werte bleiben leer (siehe Debug-Ausgabe).
 - Zugangsdaten und Tokens werden nicht in die Debug-Ausgabe geschrieben.
 - `vorschau.html` zeigt die Kachel mit Beispieldaten im Browser (nicht Teil des Moduls).
+
+## Farben
+
+Die Kachel hat keine eigenen Farbeinstellungen. Die Farben kommen aus dem Modul [Visu Design](https://github.com/cippo-69/IPSymconVisuDesign) (CSS-Variablen `--w5-*`, heller Modus und Dark Mode). Ohne Design-Instanz gilt das Farbkonzept W5x.

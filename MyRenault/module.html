@@ -3,20 +3,23 @@
     --mrn-surface: rgba(127,127,127,.12);
     --mrn-line: rgba(127,127,127,.25);
     --mrn-muted: rgba(127,127,127,1);
-    /* Farbkonzept W5x: green = Tannengrün (Akzent, lädt), amber = Ginster (Sonne/PV), red = Signalrot, blue = Akzent (Bedienung) */
-    --mrn-green: #2F6B4F;
-    --mrn-amber: #7A6000;
-    --mrn-red: #C8321F;
-    --mrn-blue: #2F6B4F;
-    --mrn-on: #fff;          /* Schrift auf Akzent-/Alarmfläche */
+  }
+  /* Farben aus dem Modul „Visu Design“ (--w5-*); die Werte nach dem Komma gelten ohne Design-Instanz.
+     green = Akzent (lädt), amber = Sonne/PV, red = Alarm, blue = Akzent (Bedienung) */
+  body {
+    --mrn-green: var(--w5-accent, #2F6B4F);
+    --mrn-amber: var(--w5-sun, #7A6000);
+    --mrn-red: var(--w5-alarm, #C8321F);
+    --mrn-blue: var(--w5-accent, #2F6B4F);
+    --mrn-on: var(--w5-on, #fff);
   }
   /* Dark Mode der Visu (erkannt an der hellen Schriftfarbe, wie in den anderen W5x-Kacheln) */
   body.dark {
-    --mrn-green: #74B892;
-    --mrn-amber: #F2CF63;
-    --mrn-red: #FF5A47;
-    --mrn-blue: #74B892;
-    --mrn-on: #1E2224;
+    --mrn-green: var(--w5-accent, #74B892);
+    --mrn-amber: var(--w5-sun, #F2CF63);
+    --mrn-red: var(--w5-alarm, #FF5A47);
+    --mrn-blue: var(--w5-accent, #74B892);
+    --mrn-on: var(--w5-on, #1E2224);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: transparent; }
